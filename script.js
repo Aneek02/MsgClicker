@@ -10,6 +10,10 @@ const FRAME_HEIGHT = 2.7;
 const IMAGE_WIDTH = 2.0;
 const IMAGE_HEIGHT = 2.0;
 
+// --- State Management ---
+let selectedPhoto = null;
+let isDragging = false;
+let dragStartPosition = { x: 0, y: 0 };
 let scene, camera, renderer, raycaster, mouse;
 const photos = [];
 
@@ -109,13 +113,14 @@ function init() {
   animate();
 }
 
-let selectedPhoto = null;
-let isDragging = false;
-
 // --- Event Handlers ---
 function onMouseDown(event) {
   // Don't interact if the message box is currently visible
   if (messageBox.style.display === "block") return;
+
+  // Store initial drag position to differentiate click vs. drag
+  dragStartPosition.x = event.clientX;
+  dragStartPosition.y = event.clientY;
 
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -135,6 +140,7 @@ function onMouseDown(event) {
 
     // Animate the photo "popping" to the front using GSAP
     gsap.to(selectedPhoto.position, {
+      // This animation still works for picking up
       z: PHOTO_COUNT * 0.1 + 1, // Bring it even further to the front
       duration: 0.3,
       ease: "power2.out",
@@ -149,6 +155,13 @@ function onMouseDown(event) {
 }
 
 function onMouseMove(event) {
+  // If we are dragging, check if the mouse has moved enough to be considered a drag
+  if (isDragging) {
+    const dx = event.clientX - dragStartPosition.x;
+    const dy = event.clientY - dragStartPosition.y;
+    if (Math.sqrt(dx * dx + dy * dy) < 5) return; // Not a drag yet
+  }
+
   if (isDragging && selectedPhoto) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -169,55 +182,43 @@ function onMouseMove(event) {
 }
 
 function onMouseUp(event) {
-  if (isDragging && selectedPhoto) {
-    const index = selectedPhoto.userData.index;
-    const message = messages[index] || "You're amazing!";
+  if (!selectedPhoto) return;
 
-    // --- Message Box Display ---
-    // The previous implementation used innerHTML on messageBox, but had a reference to message-text.
-    // Since message-text is removed, we set the message directly on the box and show it.
-    messageBox.innerHTML = `<p>${message}</p>`; // Wrap in <p> to apply CSS styling
+  // Check if it was a click or a drag
+  const dx = event.clientX - dragStartPosition.x;
+  const dy = event.clientY - dragStartPosition.y;
+  const isClick = Math.sqrt(dx * dx + dy * dy) < 5;
+
+  // The topmost photo is the last one in the array (highest z-index)
+  const topmostPhoto = photos[photos.length - 1];
+
+  if (isClick && selectedPhoto === topmostPhoto) {
+    // --- CLICK LOGIC ---
+    // It was a click on the topmost photo, show a message
+    const message = messages[selectedPhoto.userData.index] || "You're amazing!";
+    messageBox.innerHTML = `<p>${message}</p>`;
     messageBox.style.display = "block";
 
-    // Animate the photo returning to the center stack
-    gsap.to(selectedPhoto.position, {
-      x: 0,
-      y: 0,
-      z: index * 0.1, // Return to its original z-depth
-      duration: 0.5,
-      ease: "power2.inOut",
-    });
-    // Animate scale back to normal
-    gsap.to(selectedPhoto.scale, {
-      x: 1,
-      y: 1,
-      duration: 0.5,
-      ease: "power2.inOut",
-      onComplete: () => {
-        // Ensure the selectedPhoto reference is cleared only after the animation
-        selectedPhoto = null;
-      },
-    });
-
-    // Hide the message box after 2 seconds
+    // Hide the message after a delay
     setTimeout(() => {
       messageBox.style.display = "none";
     }, 2000);
-  }
-  isDragging = false;
-  // If we had a quick click without a drag, selectedPhoto would be cleared here.
-  // We moved the clearance into the GSAP onComplete to prevent drag issues.
-  if (!isDragging && selectedPhoto) {
-    // If it was just a click, ensure it snaps back and scale returns
-    gsap.to(selectedPhoto.scale, { x: 1, y: 1, duration: 0.1 });
+
+    // Animate the photo back to its original state
+    gsap.to(selectedPhoto.scale, { x: 1, y: 1, duration: 0.3 });
     gsap.to(selectedPhoto.position, {
       z: selectedPhoto.userData.index * 0.1,
-      duration: 0.1,
-      onComplete: () => {
-        selectedPhoto = null;
-      },
+      duration: 0.3,
     });
+  } else {
+    // --- DRAG LOGIC ---
+    // It was a drag, so just leave the photo where it was dropped.
+    // We can animate the scale back to normal for a nice "drop" effect.
+    gsap.to(selectedPhoto.scale, { x: 1, y: 1, duration: 0.3 });
   }
+
+  isDragging = false;
+  selectedPhoto = null;
 }
 
 function onWindowResize() {
