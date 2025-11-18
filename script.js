@@ -163,21 +163,24 @@ function onMouseMove(event) {
   }
 
   if (isDragging && selectedPhoto) {
+    // Update mouse vector
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    // Convert mouse coordinates to 3D world coordinates on a plane in front of the camera
-    const vector = new THREE.Vector3(mouse.x, mouse.y, 0.5); // 0.5 is a depth value, adjust as needed
-    vector.unproject(camera);
-    const dir = vector.sub(camera.position).normalize();
+    // Update the raycaster with the new mouse position
+    raycaster.setFromCamera(mouse, camera);
 
-    // Calculate distance to the initial z-position of the photo (or a close plane)
-    // Using a fixed distance for dragging in 2D space for simplicity
-    const distance = (camera.position.z + selectedPhoto.position.z) / dir.z;
-    const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+    // Calculate the position on a plane at z=0
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const intersectPoint = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, intersectPoint);
 
-    selectedPhoto.position.x = pos.x;
-    selectedPhoto.position.y = pos.y;
+    // Set the photo's position to the intersection point
+    selectedPhoto.position.set(
+      intersectPoint.x,
+      intersectPoint.y,
+      selectedPhoto.position.z
+    );
   }
 }
 
