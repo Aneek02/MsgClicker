@@ -15,7 +15,7 @@ let selectedPhoto = null;
 let isDragging = false;
 let dragStartPosition = { x: 0, y: 0 };
 let scene, camera, renderer, raycaster, mouse;
-const photos = [];
+let topZ; // Will track the highest z-index for stacking
 
 // Using random messages as requested.
 const messages = [
@@ -25,6 +25,8 @@ const messages = [
   "My one and only!",
   "You are the cutest!",
 ];
+
+const photos = [];
 
 // --- Initialization ---
 function init() {
@@ -75,7 +77,7 @@ function init() {
 
   // Basic frame material
   const frame_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  
+
   const border_material = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Black border
 
   for (let i = 0; i < PHOTO_COUNT; i++) {
@@ -110,6 +112,9 @@ function init() {
     photos.push(group);
     scene.add(group);
   }
+
+  // Initialize the top Z-index to be just above the initial stack
+  topZ = PHOTO_COUNT * 0.1;
 
   // Raycaster and Mouse setup
   raycaster = new THREE.Raycaster();
@@ -150,10 +155,12 @@ function onMouseDown(event) {
     selectedPhoto = intersects[0].object.parent;
     isDragging = true;
 
+    // Increment the top z-index and bring the selected photo to the very front
+    topZ += 0.01;
+
     // Animate the photo "popping" to the front using GSAP
     gsap.to(selectedPhoto.position, {
-      // This animation still works for picking up
-      z: PHOTO_COUNT * 0.1 + 1, // Bring it even further to the front
+      z: topZ, // Bring it to the new highest z-index
       duration: 0.3,
       ease: "power2.out",
     });
