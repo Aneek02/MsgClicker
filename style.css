@@ -1,8 +1,13 @@
 body {
     margin: 0;
-    /* Removed 'overflow: hidden;' from body as it conflicts with THREE.js canvas */
-    background-color: #fce4ec; /* Light pink background */
     font-family: 'Comic Sans MS', cursive, sans-serif;
+    /* --- NEW BACKGROUND STYLES --- */
+    background-image: url('cherry_bow_pattern.png'); /* Reference your saved image */
+    background-repeat: repeat; /* This will tile the pattern */
+    background-size: auto; /* Use original size of the pattern, or you can use 'contain' or 'cover' if you want to stretch it */
+    background-attachment: fixed; /* Keeps the background static as content scrolls (if you add scrollable content later) */
+    background-color: #fce4ec; /* Fallback color if the image doesn't load */
+    /* --- END NEW BACKGROUND STYLES --- */
 }
 
 /* Set container to take up the full viewport */
@@ -10,6 +15,8 @@ body {
     width: 100vw;
     height: 100vh;
     display: block; /* Ensure it's treated as a block element */
+    /* Ensure the 3D scene background is transparent so the body background shows through */
+    background-color: transparent; 
 }
 
 /* Message box needs to be hidden by default and positioned over the 3D scene */
@@ -19,16 +26,13 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     padding: 20px;
-    background-color: #fff;
+    background-color: rgba(255, 255, 255, 0.8); /* Slightly transparent white for message box */
     border: 2px solid #f8bbd0; /* Pink border */
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     text-align: center;
     font-size: 24px;
     color: #ad1457; /* Dark pink text */
-    /* Initially hide the message box */
     display: none; 
-    z-index: 10; /* Ensure it's on top of the 3D scene */
+    z-index: 10; 
 }
-
-/* Removed #qrcode and the unused #message-text and #close-button styling from the original */
