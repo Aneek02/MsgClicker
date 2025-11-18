@@ -230,16 +230,8 @@ function onWindowResize() {
 // --- Animation Loop ---
 function animate() {
   requestAnimationFrame(animate);
-
-  // Gently rotate the photos on the z-axis for a subtle 3D effect
-  photos.forEach((photo, index) => {
-    // Prevent dragging photo from rotating
-    if (photo !== selectedPhoto) {
-      photo.rotation.z = Math.sin(Date.now() * 0.0005 + index) * 0.1;
-      photo.rotation.x = Math.sin(Date.now() * 0.0003 + index) * 0.05;
-    }
-  });
-
+  // The animation loop is now only responsible for rendering the scene.
+  // All animations are handled by GSAP on user interaction.
   renderer.render(scene, camera);
 }
 
