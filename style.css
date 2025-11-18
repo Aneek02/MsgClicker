@@ -2,7 +2,7 @@ body {
     margin: 0;
     font-family: 'Comic Sans MS', cursive, sans-serif;
     /* --- NEW BACKGROUND STYLES --- */
-    background-image: url('cherry_bow_pattern.png'); /* Reference your saved image */
+    background-image: url('cute.png'); /* Reference your saved image */
     background-repeat: repeat; /* This will tile the pattern */
     background-size: auto; /* Use original size of the pattern, or you can use 'contain' or 'cover' if you want to stretch it */
     background-attachment: fixed; /* Keeps the background static as content scrolls (if you add scrollable content later) */
