@@ -1,5 +1,7 @@
+// Global scope variables are fine, but ensure they are correctly referenced
 const container = document.getElementById("container");
 const messageBox = document.getElementById("message-box");
+// messageText is not needed anymore as we set innerHTML on messageBox
 
 // --- Configuration ---
 const PHOTO_COUNT = 5;
@@ -22,15 +24,24 @@ const messages = [
 
 // --- Initialization ---
 function init() {
+  // Check if container exists before trying to append to it
+  if (!container) {
+    console.error("Container element not found! Ensure index.html has <div id='container'></div>");
+    return;
+  }
+  
   // Scene, Camera, and Renderer setup
   scene = new THREE.Scene();
+  // Using background color from CSS in the scene
+  scene.background = new THREE.Color(0xfce4ec); 
+  
   camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
     1000
   );
-  renderer = new THREE.WebGLRenderer();
+  renderer = new THREE.WebGLRenderer({ antialias: true }); // Added antialiasing for better look
   renderer.setSize(window.innerWidth, window.innerHeight);
   container.appendChild(renderer.domElement);
 
@@ -56,22 +67,27 @@ function init() {
       "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=500&auto=format&fit=crop"
     ),
   ];
+  
+  // Basic frame material
+  const frame_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
   for (let i = 0; i < PHOTO_COUNT; i++) {
     const group = new THREE.Group();
 
+    // Frame (white border)
     const frame_geometry = new THREE.PlaneGeometry(FRAME_WIDTH, FRAME_HEIGHT);
-    const frame_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const frame = new THREE.Mesh(frame_geometry, frame_material);
 
+    // Image
     const image_geometry = new THREE.PlaneGeometry(IMAGE_WIDTH, IMAGE_HEIGHT);
     const image_material = new THREE.MeshBasicMaterial({ map: textures[i] });
-    const image = new THREE.Mesh(image_geometry, image_material); // Image is square
-    image.position.y = 0.15; // Shift image up to create larger bottom border
+    const image = new THREE.Mesh(image_geometry, image_material);
+    image.position.y = 0.15; // Shift image up to create larger bottom border (polaroid effect)
 
     group.add(frame);
     group.add(image);
 
+    // Spread photos in a stack
     group.position.set(0, 0, i * 0.1);
     group.userData.index = i;
     photos.push(group);
@@ -83,10 +99,11 @@ function init() {
   mouse = new THREE.Vector2();
 
   // Event Listeners
-  document.addEventListener("mousedown", onMouseDown);
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-  window.addEventListener("resize", onWindowResize);
+  // Listeners are added to the canvas element or window as needed
+  document.addEventListener("mousedown", onMouseDown, false);
+  document.addEventListener("mousemove", onMouseMove, false);
+  document.addEventListener("mouseup", onMouseUp, false);
+  window.addEventListener("resize", onWindowResize, false);
 
   animate();
 }
@@ -96,16 +113,20 @@ let isDragging = false;
 
 // --- Event Handlers ---
 function onMouseDown(event) {
+  // Don't interact if the message box is currently visible
+  if (messageBox.style.display === 'block') return; 
+
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects(photos);
+  
+  // Find intersections with the photo groups' children (frame and image)
+  const intersects = raycaster.intersectObjects(photos.flatMap(p => p.children), false); 
 
   if (intersects.length > 0) {
-    // The raycaster can hit the image or the frame, but we want the group.
-    // The parent of the mesh is the group.
-    selectedPhoto = intersects[0].object.parent;
+    // The closest intersected object's parent is the THREE.Group (the photo)
+    selectedPhoto = intersects[0].object.parent; 
     isDragging = true;
 
     // Animate the photo "popping" to the front using GSAP
@@ -128,10 +149,14 @@ function onMouseMove(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    const vector = new THREE.Vector3(mouse.x, mouse.y, 0.5);
+    // Convert mouse coordinates to 3D world coordinates on a plane in front of the camera
+    const vector = new THREE.Vector3(mouse.x, mouse.y, 0.5); // 0.5 is a depth value, adjust as needed
     vector.unproject(camera);
     const dir = vector.sub(camera.position).normalize();
-    const distance = -camera.position.z / dir.z;
+    
+    // Calculate distance to the initial z-position of the photo (or a close plane)
+    // Using a fixed distance for dragging in 2D space for simplicity
+    const distance = (camera.position.z + selectedPhoto.position.z) / dir.z; 
     const pos = camera.position.clone().add(dir.multiplyScalar(distance));
 
     selectedPhoto.position.x = pos.x;
@@ -141,15 +166,20 @@ function onMouseMove(event) {
 
 function onMouseUp(event) {
   if (isDragging && selectedPhoto) {
-    const message = messages[selectedPhoto.userData.index] || "You're amazing!";
-    messageBox.innerHTML = message;
+    const index = selectedPhoto.userData.index;
+    const message = messages[index] || "You're amazing!";
+    
+    // --- Message Box Display ---
+    // The previous implementation used innerHTML on messageBox, but had a reference to message-text. 
+    // Since message-text is removed, we set the message directly on the box and show it.
+    messageBox.innerHTML = `<p>${message}</p>`; // Wrap in <p> to apply CSS styling
     messageBox.style.display = "block";
-
+    
     // Animate the photo returning to the center stack
     gsap.to(selectedPhoto.position, {
       x: 0,
       y: 0,
-      z: selectedPhoto.userData.index * 0.1, // Return to its original z-depth
+      z: index * 0.1, // Return to its original z-depth
       duration: 0.5,
       ease: "power2.inOut",
     });
@@ -159,14 +189,27 @@ function onMouseUp(event) {
       y: 1,
       duration: 0.5,
       ease: "power2.inOut",
+      onComplete: () => {
+        // Ensure the selectedPhoto reference is cleared only after the animation
+        selectedPhoto = null; 
+      }
     });
 
+    // Hide the message box after 2 seconds
     setTimeout(() => {
       messageBox.style.display = "none";
     }, 2000);
   }
   isDragging = false;
-  selectedPhoto = null; // Deselect after animation is complete
+  // If we had a quick click without a drag, selectedPhoto would be cleared here.
+  // We moved the clearance into the GSAP onComplete to prevent drag issues.
+  if (!isDragging && selectedPhoto) {
+    // If it was just a click, ensure it snaps back and scale returns
+    gsap.to(selectedPhoto.scale, {x: 1, y: 1, duration: 0.1});
+    gsap.to(selectedPhoto.position, {z: selectedPhoto.userData.index * 0.1, duration: 0.1, onComplete: () => {
+        selectedPhoto = null;
+    }});
+  }
 }
 
 function onWindowResize() {
@@ -178,6 +221,16 @@ function onWindowResize() {
 // --- Animation Loop ---
 function animate() {
   requestAnimationFrame(animate);
+  
+  // Gently rotate the photos on the z-axis for a subtle 3D effect
+  photos.forEach((photo, index) => {
+    // Prevent dragging photo from rotating
+    if (photo !== selectedPhoto) {
+      photo.rotation.z = Math.sin(Date.now() * 0.0005 + index) * 0.1;
+      photo.rotation.x = Math.sin(Date.now() * 0.0003 + index) * 0.05;
+    }
+  });
+
   renderer.render(scene, camera);
 }
 
