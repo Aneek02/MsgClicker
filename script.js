@@ -75,12 +75,23 @@ function init() {
 
   // Basic frame material
   const frame_material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  
+  const border_material = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Black border
 
   for (let i = 0; i < PHOTO_COUNT; i++) {
     const group = new THREE.Group();
 
+    // Thin black border (slightly larger than the white frame)
+    const BORDER_OFFSET = 0.05;
+    const border_geometry = new THREE.PlaneGeometry(
+      FRAME_WIDTH + BORDER_OFFSET,
+      FRAME_HEIGHT + BORDER_OFFSET
+    );
+    const border = new THREE.Mesh(border_geometry, border_material);
+    border.position.z = -0.01; // Place it just behind the white frame
+
     // Frame (white border)
-    const frame_geometry = new THREE.PlaneGeometry(FRAME_WIDTH, FRAME_HEIGHT);
+    const frame_geometry = new THREE.PlaneGeometry(FRAME_WIDTH, FRAME_HEIGHT); // This is correct
     const frame = new THREE.Mesh(frame_geometry, frame_material);
 
     // Image
@@ -89,6 +100,7 @@ function init() {
     const image = new THREE.Mesh(image_geometry, image_material);
     image.position.y = 0.15; // Shift image up to create larger bottom border (polaroid effect)
 
+    group.add(border);
     group.add(frame);
     group.add(image);
 
